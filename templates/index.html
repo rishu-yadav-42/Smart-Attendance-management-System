@@ -32,12 +32,12 @@
 </head>
 <body class="{% if session.get('admin') %}admin-dashboard{% endif %}">
     {% if session.get('admin') %}
-    <button class="menu-toggle" id="menuToggle" type="button" aria-label="Toggle navigation menu" aria-controls="adminSidebar" aria-expanded="false">
+    <button class="menu-toggle" id="menuToggle" type="button" aria-label="Toggle navigation menu" aria-controls="mobileSidebar" aria-expanded="false">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
     </button>
     <div class="sidebar-overlay" id="sidebarOverlay"></div>
     <div class="app-layout flex h-screen w-full antialiased text-slate-800">
-        <aside class="sidebar w-[280px] bg-[#0f172a] text-slate-300 flex flex-col shadow-2xl relative z-20 flex-shrink-0" id="adminSidebar">
+        <aside class="sidebar desktop-sidebar w-[280px] bg-[#0f172a] text-slate-300 flex flex-col shadow-2xl relative z-20 flex-shrink-0" id="adminSidebar">
             <div class="p-6 pb-8 flex items-center justify-between">
                 <div class="sidebar-brand-text">
                     <h1 class="text-white text-xl font-extrabold tracking-tight leading-tight">Smart Attendance</h1>
@@ -86,6 +86,60 @@
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
                     <span>Logout</span>
                 </a>
+            </div>
+        </aside>
+
+        <aside class="mobile-sidebar" id="mobileSidebar" aria-hidden="true">
+            <div class="mobile-sidebar__panel">
+                <div class="mobile-sidebar__header">
+                    <div class="sidebar-brand-text">
+                        <h1 class="text-white text-xl font-extrabold tracking-tight leading-tight">Smart Attendance</h1>
+                        <p class="text-slate-500 text-xs mt-1 font-medium tracking-wide">Face Recognition System</p>
+                    </div>
+                    <button id="mobileSidebarClose" type="button" class="mobile-sidebar__close" aria-label="Close navigation menu">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                    </button>
+                </div>
+                <nav class="sidebar-nav mobile-sidebar__nav">
+                    <a href="/" class="active flex items-center gap-3 px-4 py-3 bg-[#2563eb] text-white rounded-xl shadow-md transition-all font-semibold">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9"></rect><rect x="14" y="3" width="7" height="5"></rect><rect x="14" y="12" width="7" height="9"></rect><rect x="3" y="16" width="7" height="5"></rect></svg>
+                        <span>Dashboard</span>
+                    </a>
+                    <a href="/camera" class="flex items-center gap-3 px-4 py-3 hover:bg-white/10 hover:text-white rounded-xl transition-all font-medium">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"></path><circle cx="12" cy="13" r="3"></circle></svg>
+                        <span>Take Attendance</span>
+                    </a>
+                    <a href="/train" class="flex items-center gap-3 px-4 py-3 hover:bg-white/10 hover:text-white rounded-xl transition-all font-medium">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg>
+                        <span>Train Model</span>
+                    </a>
+                    <a href="/retrain" class="flex items-center gap-3 px-4 py-3 hover:bg-white/10 hover:text-white rounded-xl transition-all font-medium">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><polyline points="3 3 3 8 8 8"></polyline></svg>
+                        <span>Retrain Model</span>
+                    </a>
+                    <a href="/sync_attendance" class="flex items-center gap-3 px-4 py-3 hover:bg-white/10 hover:text-white rounded-xl transition-all font-medium">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"></path></svg>
+                        <span>Sync Attendance</span>
+                    </a>
+                    <a href="/db_view" class="flex items-center gap-3 px-4 py-3 hover:bg-white/10 hover:text-white rounded-xl transition-all font-medium">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"></ellipse><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"></path><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path></svg>
+                        <span>DB View</span>
+                    </a>
+                    <a href="/#register-student" class="flex items-center gap-3 px-4 py-3 hover:bg-white/10 hover:text-white rounded-xl transition-all font-medium">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="8.5" cy="7" r="4"></circle><line x1="20" y1="8" x2="20" y2="14"></line><line x1="23" y1="11" x2="17" y2="11"></line></svg>
+                        <span>Register Student</span>
+                    </a>
+                </nav>
+                <div class="sidebar-footer mobile-sidebar__footer">
+                    <div class="bg-emerald-50 text-emerald-600 px-4 py-2 rounded-full text-xs font-bold flex items-center justify-center gap-2 border border-emerald-100 shadow-inner">
+                        <div class="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
+                        Admin Active
+                    </div>
+                    <a href="/logout" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2.5 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-colors shadow-md">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+                        <span>Logout</span>
+                    </a>
+                </div>
             </div>
         </aside>
 
@@ -347,15 +401,19 @@
         (function() {
             var body = document.body;
             var sidebar = document.getElementById('adminSidebar');
+            var mobileSidebar = document.getElementById('mobileSidebar');
+            var mobileSidebarClose = document.getElementById('mobileSidebarClose');
             var menuToggle = document.getElementById('menuToggle');
             var collapseToggle = document.getElementById('sidebarToggle');
             var overlay = document.getElementById('sidebarOverlay');
-            var desktopBreakpoint = window.matchMedia('(min-width: 1024px)');
+            var mobileBreakpoint = window.matchMedia('(max-width: 767px)');
+            var desktopBreakpoint = window.matchMedia('(min-width: 768px)');
 
-            function setSidebarOpen(isOpen) {
-                if (!sidebar || !overlay || !menuToggle) return;
-                body.classList.toggle('sidebar-open', isOpen);
-                sidebar.classList.toggle('open', isOpen);
+            function setMobileSidebarOpen(isOpen) {
+                if (!mobileSidebar || !overlay || !menuToggle) return;
+                body.classList.toggle('mobile-nav-open', isOpen);
+                mobileSidebar.classList.toggle('open', isOpen);
+                mobileSidebar.setAttribute('aria-hidden', isOpen ? 'false' : 'true');
                 overlay.classList.toggle('active', isOpen);
                 menuToggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
             }
@@ -369,8 +427,9 @@
             function syncSidebarMode() {
                 if (!sidebar) return;
                 if (desktopBreakpoint.matches) {
-                    body.classList.remove('sidebar-open');
-                    sidebar.classList.remove('open');
+                    body.classList.remove('mobile-nav-open');
+                    mobileSidebar && mobileSidebar.classList.remove('open');
+                    mobileSidebar && mobileSidebar.setAttribute('aria-hidden', 'true');
                     overlay && overlay.classList.remove('active');
                     menuToggle && menuToggle.setAttribute('aria-expanded', 'false');
 
@@ -381,7 +440,7 @@
                     }
                 } else {
                     sidebar.classList.remove('collapsed');
-                    setSidebarOpen(false);
+                    setMobileSidebarOpen(false);
                 }
             }
 
@@ -391,7 +450,7 @@
                 menuToggle.addEventListener('click', function(event) {
                     event.preventDefault();
                     event.stopPropagation();
-                    setSidebarOpen(!body.classList.contains('sidebar-open'));
+                    setMobileSidebarOpen(!body.classList.contains('mobile-nav-open'));
                 });
             }
 
@@ -404,23 +463,29 @@
 
             if (overlay) {
                 overlay.addEventListener('click', function() {
-                    setSidebarOpen(false);
+                    setMobileSidebarOpen(false);
+                });
+            }
+
+            if (mobileSidebarClose) {
+                mobileSidebarClose.addEventListener('click', function() {
+                    setMobileSidebarOpen(false);
                 });
             }
 
             document.addEventListener('keydown', function(event) {
                 if (event.key === 'Escape') {
-                    setSidebarOpen(false);
+                    setMobileSidebarOpen(false);
                 }
             });
 
             window.addEventListener('resize', syncSidebarMode);
 
-            document.querySelectorAll('.sidebar-nav a, .sidebar-footer a').forEach(function(link) {
+            document.querySelectorAll('.mobile-sidebar .sidebar-nav a, .mobile-sidebar .sidebar-footer a').forEach(function(link) {
                 link.addEventListener('click', function() {
-                    if (!desktopBreakpoint.matches) {
+                    if (mobileBreakpoint.matches) {
                         window.setTimeout(function() {
-                            setSidebarOpen(false);
+                            setMobileSidebarOpen(false);
                         }, 0);
                     }
                 });
