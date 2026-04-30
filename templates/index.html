@@ -30,20 +30,20 @@
         }
     </script>
 </head>
-<body>
+<body class="{% if session.get('admin') %}admin-dashboard{% endif %}">
     {% if session.get('admin') %}
-    <button class="menu-toggle" id="menuToggle" onclick="document.querySelector('.sidebar').classList.toggle('open');document.getElementById('sidebarOverlay').classList.toggle('active');">
+    <button class="menu-toggle" id="menuToggle" type="button" aria-label="Toggle navigation menu" aria-controls="adminSidebar" aria-expanded="false">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
     </button>
-    <div class="sidebar-overlay" id="sidebarOverlay" onclick="document.querySelector('.sidebar').classList.remove('open');this.classList.remove('active');"></div>
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
     <div class="app-layout flex h-screen w-full antialiased text-slate-800">
-        <aside class="sidebar w-[280px] bg-[#0f172a] text-slate-300 flex flex-col shadow-2xl relative z-20 flex-shrink-0">
+        <aside class="sidebar w-[280px] bg-[#0f172a] text-slate-300 flex flex-col shadow-2xl relative z-20 flex-shrink-0" id="adminSidebar">
             <div class="p-6 pb-8 flex items-center justify-between">
                 <div class="sidebar-brand-text">
                     <h1 class="text-white text-xl font-extrabold tracking-tight leading-tight">Smart Attendance</h1>
                     <p class="text-slate-500 text-xs mt-1 font-medium tracking-wide">Face Recognition System</p>
                 </div>
-                <button id="sidebarToggle" onclick="document.querySelector('.sidebar').classList.toggle('collapsed');localStorage.setItem('sidebarCollapsed', document.querySelector('.sidebar').classList.contains('collapsed'));" class="text-slate-400 hover:text-white transition-colors p-1 rounded-lg hover:bg-white/10" title="Collapse sidebar">
+                <button id="sidebarToggle" type="button" class="text-slate-400 hover:text-white transition-colors p-1 rounded-lg hover:bg-white/10" title="Collapse sidebar">
                     <svg id="collapseIcon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
                 </button>
             </div>
@@ -89,7 +89,7 @@
             </div>
         </aside>
 
-        <main class="flex-1 h-screen overflow-y-auto relative z-10 p-8">
+        <main class="admin-main flex-1 h-screen overflow-y-auto relative z-10 p-8">
             <style>
                 .admin-glass {
                     background: linear-gradient(135deg, rgba(255, 255, 255, 0.75) 0%, rgba(255, 255, 255, 0.35) 100%);
@@ -115,6 +115,19 @@
                 #collapseIcon { transition: transform 0.3s ease; }
                 .sidebar.collapsed .sidebar-nav a svg { width: 32px !important; height: 32px !important; }
                 .sidebar.collapsed .sidebar-footer a svg { width: 28px !important; height: 28px !important; }
+                @media (max-width: 1023px) {
+                    .sidebar.collapsed { width: 280px !important; }
+                    .sidebar.collapsed .sidebar-brand-text { display: block !important; }
+                    .sidebar.collapsed #sidebarToggle { display: none; }
+                    .sidebar.collapsed .sidebar-nav a { justify-content: flex-start; padding-left: 16px; padding-right: 16px; }
+                    .sidebar.collapsed .sidebar-nav a span,
+                    .sidebar.collapsed .sidebar-nav a svg + * { display: inline !important; }
+                    .sidebar.collapsed .sidebar-footer > div,
+                    .sidebar.collapsed .sidebar-footer a span { display: flex !important; }
+                    .sidebar.collapsed .sidebar-footer a { justify-content: center; padding-left: 16px; padding-right: 16px; }
+                    .sidebar.collapsed .sidebar-nav a svg { width: 18px !important; height: 18px !important; }
+                    .sidebar.collapsed .sidebar-footer a svg { width: 16px !important; height: 16px !important; }
+                }
                 .admin-glass-input {
                     background: rgba(255, 255, 255, 0.6);
                     border: 1px solid rgba(255, 255, 255, 0.8);
@@ -148,12 +161,12 @@
 
             <div class="max-w-7xl mx-auto flex flex-col gap-8">
                 <!-- Header -->
-                <header class="flex justify-between items-end">
+                <header class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
                     <div>
                         <h2 class="text-3xl font-extrabold text-slate-900 tracking-tight">Dashboard</h2>
                         <p class="text-slate-500 mt-1 text-sm font-medium">Overview of students, attendance, and system status.</p>
                     </div>
-                    <div class="flex gap-3">
+                    <div class="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
                         <span class="admin-glass px-4 py-2 text-xs font-bold text-emerald-700 flex items-center gap-2 rounded-full" style="border-color:rgba(16,185,129,0.3);">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
                             Model {{ "Ready" if model_ready else "Needs Training" }}
@@ -332,17 +345,87 @@
     </div>
     <script>
         (function() {
-            var sb = document.querySelector('.sidebar');
-            if (localStorage.getItem('sidebarCollapsed') === 'true') sb.classList.add('collapsed');
-        })();
-        document.querySelectorAll('.sidebar-nav a').forEach(function(link) {
-            link.addEventListener('click', function() {
-                if (window.innerWidth <= 1024) {
-                    document.querySelector('.sidebar').classList.remove('open');
-                    document.getElementById('sidebarOverlay').classList.remove('active');
+            var body = document.body;
+            var sidebar = document.getElementById('adminSidebar');
+            var menuToggle = document.getElementById('menuToggle');
+            var collapseToggle = document.getElementById('sidebarToggle');
+            var overlay = document.getElementById('sidebarOverlay');
+            var desktopBreakpoint = window.matchMedia('(min-width: 1024px)');
+
+            function setSidebarOpen(isOpen) {
+                if (!sidebar || !overlay || !menuToggle) return;
+                body.classList.toggle('sidebar-open', isOpen);
+                sidebar.classList.toggle('open', isOpen);
+                overlay.classList.toggle('active', isOpen);
+                menuToggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+            }
+
+            function setCollapsed(isCollapsed) {
+                if (!sidebar || !desktopBreakpoint.matches) return;
+                sidebar.classList.toggle('collapsed', isCollapsed);
+                localStorage.setItem('sidebarCollapsed', isCollapsed ? 'true' : 'false');
+            }
+
+            function syncSidebarMode() {
+                if (!sidebar) return;
+                if (desktopBreakpoint.matches) {
+                    body.classList.remove('sidebar-open');
+                    sidebar.classList.remove('open');
+                    overlay && overlay.classList.remove('active');
+                    menuToggle && menuToggle.setAttribute('aria-expanded', 'false');
+
+                    if (localStorage.getItem('sidebarCollapsed') === 'true') {
+                        sidebar.classList.add('collapsed');
+                    } else {
+                        sidebar.classList.remove('collapsed');
+                    }
+                } else {
+                    sidebar.classList.remove('collapsed');
+                    setSidebarOpen(false);
+                }
+            }
+
+            syncSidebarMode();
+
+            if (menuToggle) {
+                menuToggle.addEventListener('click', function(event) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    setSidebarOpen(!body.classList.contains('sidebar-open'));
+                });
+            }
+
+            if (collapseToggle) {
+                collapseToggle.addEventListener('click', function() {
+                    if (!desktopBreakpoint.matches) return;
+                    setCollapsed(!sidebar.classList.contains('collapsed'));
+                });
+            }
+
+            if (overlay) {
+                overlay.addEventListener('click', function() {
+                    setSidebarOpen(false);
+                });
+            }
+
+            document.addEventListener('keydown', function(event) {
+                if (event.key === 'Escape') {
+                    setSidebarOpen(false);
                 }
             });
-        });
+
+            window.addEventListener('resize', syncSidebarMode);
+
+            document.querySelectorAll('.sidebar-nav a, .sidebar-footer a').forEach(function(link) {
+                link.addEventListener('click', function() {
+                    if (!desktopBreakpoint.matches) {
+                        window.setTimeout(function() {
+                            setSidebarOpen(false);
+                        }, 0);
+                    }
+                });
+            });
+        })();
     </script>
     {% else %}
     <div class="guest-view text-slate-800 antialiased min-h-screen overflow-x-hidden pb-10">
