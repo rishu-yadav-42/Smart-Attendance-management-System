@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Take Attendance</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script>
+        const TOTAL_SECONDS = 5;
+        let secondsLeft = TOTAL_SECONDS;
+
+        function updateCountdown() {
+            const el = document.getElementById("countdown");
+            if (el) el.textContent = secondsLeft;
+        }
+
+        async function stopPreviewAndContinue() {
+            const stage = document.querySelector(".camera-stage");
+            const feed = document.querySelector(".camera-feed");
+            if (stage) stage.classList.add("processing");
+            if (feed) feed.removeAttribute("src");
+
+            try {
+                await fetch("/stop_camera_preview", { method: "POST", keepalive: true });
+            } catch (error) {
+                // Ignore and continue to attendance processing.
+            }
+
+            setTimeout(() => {
+                window.location.href = "/process_attendance";
+            }, 900);
+        }
+
+        document.addEventListener("DOMContentLoaded", () => {
+            updateCountdown();
+            const timer = setInterval(() => {
+                secondsLeft -= 1;
+                updateCountdown();
+                if (secondsLeft <= 0) {
+                    clearInterval(timer);
+                    stopPreviewAndContinue();
+                }
+            }, 1000);
+        });
+    </script>
+</head>
+<body>
+    <main class="camera-shell">
+        <div class="camera-header">
+            <div>
+                <p class="eyebrow" style="color:var(--primary);font-size:12px;">Attendance Camera</p>
+                <h1>Look straight at the camera</h1>
+            </div>
+            <a class="btn secondary" href="/">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+                Back
+            </a>
+        </div>
+
+        <section class="camera-stage">
+            <div class="countdown-timer" id="countdown">5</div>
+            <div class="camera-ring">
+                <img class="camera-feed" src="{{ url_for('video_feed', max_duration=7) }}" alt="Live camera feed">
+                <div class="face-guide"></div>
+            </div>
+            <div class="camera-overlay">
+                <div class="processing-card">
+                    <div class="processing-spinner"></div>
+                    <h2>Processing</h2>
+                    <p>Face match verify ho raha hai. Please thoda steady rahiye.</p>
+                </div>
+            </div>
+            <div class="camera-status">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                Circle ke andar face rakhiye. Scan automatically start ho chuka hai.
+            </div>
+        </section>
+    </main>
+</body>
+</html>

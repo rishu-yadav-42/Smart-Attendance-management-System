@@ -1,0 +1,8 @@
+Flask
+opencv-contrib-python
+pandas
+numpy
+Pillow
+openpyxl
+insightface
+onnxruntime

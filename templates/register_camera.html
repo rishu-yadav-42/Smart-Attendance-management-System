@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register Face</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script>
+        const guideSteps = [
+            "Look straight",
+            "Turn left",
+            "Turn right",
+            "Look up",
+            "Look down",
+            "Look straight again"
+        ];
+
+        function setGuideStep(index) {
+            const current = document.querySelector(".guide-current");
+            const items = document.querySelectorAll(".guide-steps li");
+            const fill = document.querySelector(".progress-fill");
+            const progressText = document.getElementById("progress-text");
+
+            if (current) current.textContent = guideSteps[index];
+            if (fill) fill.style.width = ((index + 1) / guideSteps.length * 100) + "%";
+            if (progressText) progressText.textContent = `Step ${index + 1} of ${guideSteps.length}`;
+
+            items.forEach((item, itemIndex) => {
+                item.classList.toggle("active", itemIndex === index);
+                item.classList.toggle("completed", itemIndex < index);
+            });
+        }
+
+        async function stopPreviewAndContinue() {
+            const stage = document.querySelector(".camera-stage");
+            const feed = document.querySelector(".camera-feed");
+            if (stage) stage.classList.add("processing");
+            if (feed) feed.removeAttribute("src");
+
+            try {
+                await fetch("/stop_camera_preview", { method: "POST", keepalive: true });
+            } catch (error) {
+                // Ignore and continue to registration processing.
+            }
+
+            setTimeout(() => {
+                window.location.href = "/process_register";
+            }, 900);
+        }
+
+        document.addEventListener("DOMContentLoaded", () => {
+            let step = 0;
+            setGuideStep(step);
+            const stepTimer = setInterval(() => {
+                step = Math.min(step + 1, guideSteps.length - 1);
+                setGuideStep(step);
+            }, 1800);
+
+            setTimeout(() => {
+                clearInterval(stepTimer);
+                stopPreviewAndContinue();
+            }, 11000);
+        });
+    </script>
+</head>
+<body>
+    <main class="camera-shell">
+        <div class="camera-header">
+            <div>
+                <p class="eyebrow" style="color:var(--primary);font-size:12px;">Register Face</p>
+                <h1>Keep the face clear and steady</h1>
+            </div>
+            <a class="btn secondary" href="/">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+                Cancel
+            </a>
+        </div>
+
+        <section class="camera-stage registration">
+            <div class="camera-ring">
+                <img class="camera-feed" src="{{ url_for('video_feed', max_duration=13) }}" alt="Live camera feed">
+                <div class="face-guide"></div>
+            </div>
+            <div class="camera-overlay">
+                <div class="processing-card">
+                    <div class="processing-spinner"></div>
+                    <h2>Processing</h2>
+                    <p>Face samples save aur model update ke liye prepare kiye ja rahe hain.</p>
+                </div>
+            </div>
+            <div class="camera-status">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                Face ko circle ke andar rakhiye aur neeche diye steps follow kijiye.
+            </div>
+        </section>
+
+        <section class="guide-panel">
+            <div class="guide-header">
+                <h3>Face Position Guide</h3>
+                <span id="progress-text">Step 1 of 6</span>
+            </div>
+            <div class="progress-bar">
+                <div class="progress-fill" style="width:16%"></div>
+            </div>
+            <strong class="guide-current">Look straight</strong>
+            <ul class="guide-steps">
+                <li class="active">Look straight</li>
+                <li>Turn left</li>
+                <li>Turn right</li>
+                <li>Look up</li>
+                <li>Look down</li>
+                <li>Look straight again</li>
+            </ul>
+        </section>
+    </main>
+</body>
+</html>

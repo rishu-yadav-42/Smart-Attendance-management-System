@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Attendance</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    {% if session.get('admin') %}
+    <div class="app-layout">
+        <aside class="sidebar">
+            <div class="sidebar-brand">
+                <h1>Smart Attendance</h1>
+                <p>Face Recognition System</p>
+            </div>
+            <nav class="sidebar-nav">
+                <a href="/" class="active">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+                    Dashboard
+                </a>
+                <a href="/camera">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                    Take Attendance
+                </a>
+                <a href="/train">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+                    Train Model
+                </a>
+                <a href="/retrain">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 4v6h6"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+                    Retrain Model
+                </a>
+                <a href="/sync_attendance">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.3"/></svg>
+                    Sync Attendance
+                </a>
+                <a href="/db_view">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
+                    DB View
+                </a>
+                <a href="/#register-student">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
+                    Register Student
+                </a>
+            </nav>
+            <div class="sidebar-footer">
+                <span class="status-pill ready" style="margin-bottom:12px;display:flex;">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                    Admin Active
+                </span>
+                <a href="/logout" class="btn danger full" style="font-size:13px;padding:8px;">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                    Logout
+                </a>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <header class="topbar">
+                <div>
+                    <h1>Dashboard</h1>
+                    <p>Overview of students, attendance, and system status</p>
+                </div>
+                <div class="topbar-actions">
+                    <span class="status-pill {{ 'ready' if model_ready else 'warning' }}">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                            {% if model_ready %}<polyline points="20 6 9 17 4 12"/>{% else %}<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>{% endif %}
+                        </svg>
+                        Model {{ "Ready" if model_ready else "Needs Training" }}
+                    </span>
+                    <span class="status-pill {{ 'ready' if backend == 'arcface' else 'warning' }}" style="margin-left:8px;" title="ArcFace = best accuracy, Fallback = background sensitive">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                        {{ "ArcFace AI" if backend == 'arcface' else "Fallback Model" if backend != 'none' else "No Model" }}
+                    </span>
+                </div>
+            </header>
+
+            <section class="stats-grid">
+                <div class="card stat-card fade-in">
+                    <div class="stat-icon blue">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                    </div>
+                    <div>
+                        <div class="stat-value">{{ student_count }}</div>
+                        <div class="stat-label">Total Students</div>
+                        <div class="stat-hint">Registered in database</div>
+                    </div>
+                </div>
+                <div class="card stat-card fade-in">
+                    <div class="stat-icon green">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                    </div>
+                    <div>
+                        <div class="stat-value">{{ attendance_rows | length if attendance_rows else 0 }}</div>
+                        <div class="stat-label">Total Records</div>
+                        <div class="stat-hint">All attendance entries shown</div>
+                    </div>
+                </div>
+                <div class="card stat-card fade-in">
+                    <div class="stat-icon orange">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                    </div>
+                    <div>
+                        <div class="stat-value">{{ attendance_stats | length if attendance_stats else 0 }}</div>
+                        <div class="stat-label">Active Records</div>
+                        <div class="stat-hint">Students with attendance</div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="action-strip">
+                <a href="/camera" class="action-card">
+                    <div class="action-icon">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                    </div>
+                    <div>
+                        <strong>Take Attendance</strong>
+                        <p>Open live face scan and verify a student quickly.</p>
+                    </div>
+                </a>
+                <a href="/train" class="action-card">
+                    <div class="action-icon">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+                    </div>
+                    <div>
+                        <strong>Train Model</strong>
+                        <p>Refresh recognition data after adding or deleting students.</p>
+                    </div>
+                </a>
+            </section>
+
+            <section class="panel" id="register-student">
+                <div class="panel-header">
+                    <div>
+                        <h2>Register Student</h2>
+                        <p>Add a student ID and name, then capture guided face samples.</p>
+                    </div>
+                </div>
+                <div class="panel-body">
+                    <form action="/register" method="POST" class="register-form">
+                        <label>
+                            Student ID
+                            <input type="text" name="id" placeholder="Example: 9010" inputmode="numeric" required>
+                        </label>
+                        <label>
+                            Student Name
+                            <input type="text" name="name" placeholder="Example: Ravi Kumar" required>
+                        </label>
+                        <button type="submit" class="btn primary">Open Register Camera</button>
+                    </form>
+                </div>
+            </section>
+
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;">
+                <section class="panel">
+                    <div class="panel-header">
+                        <h2>Students</h2>
+                    </div>
+                    <div class="panel-body" style="padding:0;">
+                        <div class="table-wrap">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Name</th>
+                                        <th>Present</th>
+                                        <th>Total</th>
+                                        <th>Attendance</th>
+                                        <th style="width:80px;">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                {% for student in attendance_stats %}
+                                    <tr>
+                                        <td><strong>{{ student.Id }}</strong></td>
+                                        <td>{{ student.Name }}</td>
+                                        <td>{{ student.PresentDays }}</td>
+                                        <td>{{ student.TotalDays }}</td>
+                                        <td>
+                                            <span class="status-pill {{ 'ready' if student.Percentage >= 75 else 'warning' if student.Percentage >= 50 else 'neutral' }}">
+                                                {{ student.Percentage }}%
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <form action="/delete_student" method="POST" class="inline-form" onsubmit="return confirm('Delete {{ student.Name }} (ID: {{ student.Id }})? This will remove the student record, attendance history, and saved face samples.');">
+                                                <input type="hidden" name="student_id" value="{{ student.Id }}">
+                                                <button type="submit" class="btn danger compact">Delete</button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                {% else %}
+                                    <tr>
+                                        <td colspan="6">
+                                            <div class="empty-state">
+                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/></svg>
+                                                <p>No students registered yet.</p>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="panel">
+                    <div class="panel-header">
+                        <h2>Latest Attendance</h2>
+                    </div>
+                    <div class="panel-body" style="padding:0;">
+                        <div class="table-wrap">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Name</th>
+                                        <th>Date</th>
+                                        <th>Time</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                {% for row in attendance_rows %}
+                                    <tr>
+                                        <td><strong>{{ row.Id }}</strong></td>
+                                        <td>{{ row.Name }}</td>
+                                        <td>{{ row.Date }}</td>
+                                        <td>{{ row.Time }}</td>
+                                    </tr>
+                                {% else %}
+                                    <tr>
+                                        <td colspan="4">
+                                            <div class="empty-state">
+                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                                                <p>No attendance marked yet.</p>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </main>
+    </div>
+    {% else %}
+    <div class="guest-shell">
+        <header style="display:flex;align-items:center;justify-content:space-between;margin-bottom:32px;">
+            <div>
+                <p class="eyebrow" style="color:var(--primary);font-size:12px;">Face Attendance</p>
+                <h1 style="font-size:28px;font-weight:700;letter-spacing:-0.02em;margin-top:4px;">Smart Attendance System</h1>
+            </div>
+            <a class="btn primary" href="/login">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
+                Admin Login
+            </a>
+        </header>
+
+        <section class="guest-panel">
+            <div>
+                <p class="eyebrow" style="color:var(--primary);font-size:12px;">Live Workflow</p>
+                <h2>Face scan, verify, and mark attendance in one flow.</h2>
+                <p>Keep the student inside the scan frame, let the system verify the face, and manage all records from the same place.</p>
+            </div>
+            <div class="guest-actions">
+                <a class="btn success large" href="/camera">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                    Take Attendance
+                </a>
+                <a class="btn secondary large" href="/login">Admin Login</a>
+            </div>
+        </section>
+
+        <section class="panel">
+            <div class="panel-header">
+                <h2>Latest Attendance</h2>
+            </div>
+            <div class="panel-body" style="padding:0;">
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>ID</th><th>Name</th><th>Date</th><th>Time</th></tr>
+                        </thead>
+                        <tbody>
+                        {% for row in attendance_rows %}
+                            <tr>
+                                <td><strong>{{ row.Id }}</strong></td>
+                                <td>{{ row.Name }}</td>
+                                <td>{{ row.Date }}</td>
+                                <td>{{ row.Time }}</td>
+                            </tr>
+                        {% else %}
+                            <tr>
+                                <td colspan="4">
+                                    <div class="empty-state">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                                        <p>No attendance marked yet.</p>
+                                    </div>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+    </div>
+    {% endif %}
+</body>
+</html>

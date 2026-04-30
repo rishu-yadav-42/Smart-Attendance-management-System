@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script>
+        let seconds = 4;
+        function updateTimer() {
+            const el = document.getElementById("timer");
+            if (el) el.textContent = `Redirecting in ${seconds}s...`;
+            seconds -= 1;
+            if (seconds < 0) {
+                window.location.href = "{{ back_url }}";
+            } else {
+                setTimeout(updateTimer, 1000);
+            }
+        }
+        document.addEventListener("DOMContentLoaded", updateTimer);
+    </script>
+</head>
+<body>
+    <main class="result-shell">
+        <section class="result-box {{ 'ok' if success else 'fail' }} fade-in">
+            <div class="result-icon">
+                {% if success %}
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                {% else %}
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                {% endif %}
+            </div>
+
+            <p class="eyebrow" style="color:var(--muted);font-size:12px;margin-bottom:8px;">{{ title }}</p>
+            <h1>{{ message }}</h1>
+
+            {% if stats %}
+            <div class="result-stats">
+                {% for item in stats %}
+                <div class="stat-item">
+                    <span>{{ item.label }}</span>
+                    <strong>{{ item.value }}</strong>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <a class="btn primary" href="{{ back_url }}">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+                Back to Dashboard
+            </a>
+
+            <p class="redirect-timer" id="timer">Redirecting in 4s...</p>
+        </section>
+    </main>
+</body>
+</html>

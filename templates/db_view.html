@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Database View - Smart Attendance</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        .db-container { padding: 24px; max-width: 1200px; margin: 0 auto; }
+        .db-section { margin-bottom: 32px; }
+        .db-section h2 { margin-bottom: 12px; color: var(--text-primary); }
+        .db-stats { display: flex; gap: 16px; margin-bottom: 24px; flex-wrap: wrap; }
+        .db-stat { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px 24px; min-width: 140px; }
+        .db-stat .value { font-size: 24px; font-weight: 700; color: var(--primary); }
+        .db-stat .label { font-size: 13px; color: var(--text-secondary); margin-top: 4px; }
+        .back-link { display: inline-flex; align-items: center; gap: 8px; margin-bottom: 20px; color: var(--primary); text-decoration: none; font-weight: 500; }
+        .back-link:hover { text-decoration: underline; }
+        .table-wrap { max-height: 400px; overflow: auto; }
+    </style>
+</head>
+<body>
+    <div class="db-container">
+        <a href="/" class="back-link">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><polyline points="12 19 5 12 12 5"/></svg>
+            Back to Dashboard
+        </a>
+
+        <h1>Database Viewer</h1>
+        <div class="db-stats">
+            <div class="db-stat">
+                <div class="value">{{ total_students }}</div>
+                <div class="label">Total Students</div>
+            </div>
+            <div class="db-stat">
+                <div class="value">{{ total_attendance }}</div>
+                <div class="label">Total Attendance Records</div>
+            </div>
+            <div class="db-stat">
+                <div class="value">{{ distinct_dates }}</div>
+                <div class="label">Distinct Dates</div>
+            </div>
+        </div>
+
+        <div class="db-section">
+            <h2>Students Table</h2>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr><th>ID</th><th>Name</th></tr>
+                    </thead>
+                    <tbody>
+                        {% for row in students %}
+                        <tr><td><strong>{{ row.id }}</strong></td><td>{{ row.name }}</td></tr>
+                        {% else %}
+                        <tr><td colspan="2"><div class="empty-state">No students found.</div></td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="db-section">
+            <h2>Attendance Table (Latest 300)</h2>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr><th>DB ID</th><th>Student ID</th><th>Name</th><th>Date</th><th>Time</th><th>Confidence</th></tr>
+                    </thead>
+                    <tbody>
+                        {% for row in attendance %}
+                        <tr>
+                            <td>{{ row.id }}</td>
+                            <td><strong>{{ row.student_id }}</strong></td>
+                            <td>{{ row.name }}</td>
+                            <td>{{ row.date }}</td>
+                            <td>{{ row.time }}</td>
+                            <td>{{ row.confidence }}</td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="6"><div class="empty-state">No attendance records found.</div></td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
