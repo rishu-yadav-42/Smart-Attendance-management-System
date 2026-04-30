@@ -4,5 +4,6 @@ pandas
 numpy
 Pillow
 openpyxl
-insightface
+# insightface removed for cloud deploy - onnxruntime fallback handles ArcFace
 onnxruntime
+gunicorn==23.0.0
