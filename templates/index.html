@@ -249,9 +249,9 @@
                             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
                         </div>
                         <div>
-                            <div class="text-3xl font-extrabold text-slate-900">{{ attendance_rows | length if attendance_rows else 0 }}</div>
+                            <div class="text-3xl font-extrabold text-slate-900">{{ attendance_total_count or 0 }}</div>
                             <div class="text-sm font-semibold text-slate-500">Total Records</div>
-                            <div class="text-xs text-slate-400 mt-0.5">All attendance entries shown</div>
+                            <div class="text-xs text-slate-400 mt-0.5">All attendance entries saved</div>
                         </div>
                     </div>
                     <div class="admin-glass p-6 flex items-center gap-5 hover:-translate-y-1 transition-transform duration-300">
@@ -360,8 +360,9 @@
 
                     <!-- Attendance Table -->
                     <section class="admin-glass overflow-hidden">
-                        <div class="px-6 py-5 border-b border-white/40">
+                        <div class="px-6 py-5 border-b border-white/40 flex items-center justify-between gap-3">
                             <h2 class="text-lg font-bold text-slate-900">Latest Attendance</h2>
+                            <a href="/db_view" class="text-sm font-bold text-blue-600 hover:text-blue-700 transition-colors whitespace-nowrap">View All</a>
                         </div>
                         <div class="overflow-x-auto">
                             <table class="w-full admin-table">
