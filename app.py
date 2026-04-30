@@ -959,6 +959,12 @@ def latest_attendance_rows(limit=200):
     return [dict(row) for row in rows]
 
 
+def total_attendance_count():
+    init_db()
+    with get_db_connection() as conn:
+        return conn.execute("SELECT COUNT(*) FROM attendance").fetchone()[0]
+
+
 def attendance_files():
     init_db()
     with get_db_connection() as conn:
@@ -1209,7 +1215,8 @@ def logout():
 @app.route("/")
 def home():
     students = load_students()
-    attendance_rows = latest_attendance_rows()
+    attendance_rows = latest_attendance_rows(limit=10)
+    attendance_total_count = total_attendance_count()
     attendance_stats = attendance_summary()
     model_ready = not model_needs_training()
     recognizer, backend = load_face_recognizer()
@@ -1218,6 +1225,7 @@ def home():
         "index.html",
         students=students.to_dict("records"),
         attendance_rows=attendance_rows,
+        attendance_total_count=attendance_total_count,
         attendance_stats=attendance_stats,
         model_ready=model_ready,
         student_count=len(students),
