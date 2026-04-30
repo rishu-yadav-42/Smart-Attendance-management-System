@@ -826,16 +826,33 @@ body.admin-dashboard.mobile-nav-open {
   top: 16px;
   left: 16px;
   z-index: 1250;
-  background: var(--sidebar-bg);
-  color: #fff;
-  border: none;
-  border-radius: var(--radius);
+  background: linear-gradient(135deg, rgba(255,255,255,0.88) 0%, rgba(255,255,255,0.62) 100%);
+  color: #0f172a;
+  border: 1px solid rgba(255,255,255,0.72);
+  border-radius: 18px;
   width: 52px;
   height: 52px;
   cursor: pointer;
-  box-shadow: var(--shadow-md);
+  box-shadow: 0 18px 36px rgba(15, 23, 42, 0.14);
   align-items: center;
   justify-content: center;
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  transition:
+    transform var(--transition-slow),
+    opacity var(--transition-slow),
+    box-shadow var(--transition-slow),
+    background var(--transition-slow);
+}
+
+.menu-toggle:hover {
+  box-shadow: 0 20px 40px rgba(37, 99, 235, 0.18);
+}
+
+.menu-toggle.is-hidden {
+  opacity: 0;
+  transform: translateY(-18px);
+  pointer-events: none;
 }
 
 .mobile-sidebar {
