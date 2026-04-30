@@ -5,76 +5,270 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Take Attendance</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <script>
-        const TOTAL_SECONDS = 5;
-        let secondsLeft = TOTAL_SECONDS;
-
-        function updateCountdown() {
-            const el = document.getElementById("countdown");
-            if (el) el.textContent = secondsLeft;
-        }
-
-        async function stopPreviewAndContinue() {
-            const stage = document.querySelector(".camera-stage");
-            const feed = document.querySelector(".camera-feed");
-            if (stage) stage.classList.add("processing");
-            if (feed) feed.removeAttribute("src");
-
-            try {
-                await fetch("/stop_camera_preview", { method: "POST", keepalive: true });
-            } catch (error) {
-                // Ignore and continue to attendance processing.
-            }
-
-            setTimeout(() => {
-                window.location.href = "/process_attendance";
-            }, 900);
-        }
-
-        document.addEventListener("DOMContentLoaded", () => {
-            updateCountdown();
-            const timer = setInterval(() => {
-                secondsLeft -= 1;
-                updateCountdown();
-                if (secondsLeft <= 0) {
-                    clearInterval(timer);
-                    stopPreviewAndContinue();
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+                    },
+                    colors: {
+                        brand: {
+                            blue: '#2563EB',
+                            green: '#059669',
+                            bg: '#F8FAFC'
+                        }
+                    },
+                    boxShadow: {
+                        'glass': '0 8px 32px 0 rgba(31, 38, 135, 0.05)',
+                        'glow': '0 10px 25px -5px rgba(5, 150, 105, 0.4)',
+                    }
                 }
-            }, 1000);
-        });
+            }
+        }
     </script>
+    <style>
+        .client-camera video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: inherit;
+            transform: scaleX(-1);
+        }
+        .camera-error {
+            padding: 24px;
+            text-align: center;
+            color: #e74c3c;
+            background: #fff0f0;
+            border-radius: 12px;
+            margin: 16px;
+        }
+        .camera-error button {
+            margin-top: 12px;
+        }
+        .scan-overlay {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            border: 4px solid transparent;
+            border-radius: inherit;
+            pointer-events: none;
+            transition: border-color 0.3s, box-shadow 0.3s;
+            z-index: 3;
+        }
+        .scan-overlay.active {
+            border-color: #2ecc71;
+            box-shadow: inset 0 0 30px rgba(46, 204, 113, 0.3);
+        }
+        .scan-overlay.error {
+            border-color: #e74c3c;
+            box-shadow: inset 0 0 30px rgba(231, 76, 60, 0.3);
+        }
+        #video {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+    </style>
 </head>
 <body>
-    <main class="camera-shell">
-        <div class="camera-header">
-            <div>
-                <p class="eyebrow" style="color:var(--primary);font-size:12px;">Attendance Camera</p>
-                <h1>Look straight at the camera</h1>
+    <div class="guest-view text-slate-800 antialiased min-h-screen overflow-x-hidden pb-10">
+        <main class="camera-shell" style="background:transparent;max-width:640px;margin:0 auto;padding:24px;position:relative;z-index:10;">
+            <div class="flex justify-between items-start mb-6">
+                <div>
+                    <p class="text-blue-600 font-bold text-xs tracking-wide uppercase">Attendance Camera</p>
+                    <h1 class="text-xl font-extrabold text-slate-900 mt-1">Look straight at the camera</h1>
+                </div>
+                <a href="/" class="ultra-glass-btn flex items-center gap-2 px-4 py-2 rounded-full shadow-sm active:scale-95 transition-transform duration-200 text-sm font-semibold text-slate-700">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+                    Back
+                </a>
             </div>
-            <a class="btn secondary" href="/">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
-                Back
-            </a>
-        </div>
 
-        <section class="camera-stage">
-            <div class="countdown-timer" id="countdown">5</div>
-            <div class="camera-ring">
-                <img class="camera-feed" src="{{ url_for('video_feed', max_duration=7) }}" alt="Live camera feed">
+            <section class="camera-stage ultra-glass" style="border-radius:2rem;overflow:hidden;" id="cameraStage">
+            <div class="countdown-timer" id="countdown">10</div>
+            <div class="camera-ring client-camera">
+                <video id="video" autoplay playsinline muted></video>
+                <canvas id="canvas" style="display:none;"></canvas>
                 <div class="face-guide"></div>
+                <div class="scan-overlay" id="scanOverlay"></div>
             </div>
-            <div class="camera-overlay">
+            <div class="camera-overlay" id="processingOverlay">
                 <div class="processing-card">
                     <div class="processing-spinner"></div>
                     <h2>Processing</h2>
                     <p>Face match verify ho raha hai. Please thoda steady rahiye.</p>
                 </div>
             </div>
-            <div class="camera-status">
+            <div class="camera-status" id="cameraStatus">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
-                Circle ke andar face rakhiye. Scan automatically start ho chuka hai.
+                Camera start ho raha hai...
+            </div>
+            <div class="camera-error" id="cameraError" style="display:none;">
+                <p><strong>Camera access nahi mila.</strong></p>
+                <p>Browser settings mein camera permission enable karein aur HTTPS use karein.</p>
+                <button class="btn primary" onclick="location.reload()">Retry</button>
+                <a class="btn secondary" href="/" style="margin-left:8px;">Back</a>
             </div>
         </section>
     </main>
+
+    <script>
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const countdownEl = document.getElementById('countdown');
+        const statusEl = document.getElementById('cameraStatus');
+        const errorEl = document.getElementById('cameraError');
+        const overlayEl = document.getElementById('processingOverlay');
+        const scanOverlay = document.getElementById('scanOverlay');
+        const cameraStage = document.getElementById('cameraStage');
+
+        let stream = null;
+        let isProcessing = false;
+        let matchFound = false;
+        let secondsLeft = 12;
+        let voteCounter = {};
+        let totalChecks = 0;
+        let noFaceCount = 0;
+        let frameInterval = null;
+
+        async function startCamera() {
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: "user", width: { ideal: 640 }, height: { ideal: 480 } }
+                });
+                video.srcObject = stream;
+                statusEl.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg> Circle ke andar face rakhiye. Scan automatically start ho chuka hai.';
+                startScanning();
+            } catch (err) {
+                console.error('Camera error:', err);
+                errorEl.style.display = 'block';
+                statusEl.style.display = 'none';
+                cameraStage.classList.add('processing');
+            }
+        }
+
+        function captureFrame() {
+            canvas.width = video.videoWidth || 640;
+            canvas.height = video.videoHeight || 480;
+            const ctx = canvas.getContext('2d');
+            // Send original image (not mirrored) for better recognition accuracy
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            return new Promise(resolve => {
+                canvas.toBlob(resolve, 'image/jpeg', 0.9);
+            });
+        }
+
+        async function sendFrame() {
+            if (isProcessing || matchFound) return;
+            isProcessing = true;
+        
+            const blob = await captureFrame();
+            const formData = new FormData();
+            formData.append('image', blob, 'frame.jpg');
+        
+            try {
+                const response = await fetch('/process_frame', {
+                    method: 'POST',
+                    body: formData
+                });
+                const result = await response.json();
+                totalChecks++;
+        
+                if (result.status === 'matched') {
+                    scanOverlay.classList.remove('error');
+                    scanOverlay.classList.add('active');
+                    noFaceCount = 0;
+                    voteCounter[result.student_id] = (voteCounter[result.student_id] || 0) + 1;
+                    const votes = voteCounter[result.student_id] || 0;
+                    statusEl.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg> Match: ${result.name} (${votes}/2)`;
+        
+                    if (votes >= 2 && totalChecks >= 3) {
+                        matchFound = true;
+                        if (frameInterval) clearInterval(frameInterval);
+                        markAttendance(result.student_id, result.name, result.confidence);
+                        return;
+                    }
+                } else if (result.status === 'no_face') {
+                    scanOverlay.classList.remove('active', 'error');
+                    noFaceCount++;
+                    if (noFaceCount > 3) {
+                        statusEl.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg> Face detect nahi ho raha. Camera ke saamme aayiye.';
+                    } else {
+                        statusEl.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg> Face dhoondh raha hoon...';
+                    }
+                } else if (result.status === 'removed') {
+                    scanOverlay.classList.remove('active');
+                    scanOverlay.classList.add('error');
+                    statusEl.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg> Removed face detected!';
+                } else if (result.status === 'error') {
+                    scanOverlay.classList.remove('active', 'error');
+                    statusEl.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg> ${result.message || 'Error'}`;
+                } else {
+                    scanOverlay.classList.remove('active', 'error');
+                    statusEl.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg> Face match nahi hua. Steady rahiye.';
+                }
+            } catch (err) {
+                console.error('Frame processing error:', err);
+            } finally {
+                isProcessing = false;
+            }
+        }
+
+        async function markAttendance(studentId, name, confidence) {
+            isProcessing = true;
+            cameraStage.classList.add('processing');
+            overlayEl.style.display = 'flex';
+            if (stream) {
+                stream.getTracks().forEach(t => t.stop());
+            }
+
+            try {
+                const response = await fetch('/mark_attendance_ajax', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        student_id: studentId,
+                        name: name,
+                        confidence: confidence
+                    })
+                });
+                const result = await response.json();
+
+                if (result.success) {
+                    window.location.href = `/result?success=1&title=Attendance&message=${encodeURIComponent(result.message)}`;
+                } else {
+                    window.location.href = `/result?success=0&title=Attendance&message=${encodeURIComponent(result.message)}`;
+                }
+            } catch (err) {
+                window.location.href = `/result?success=0&title=Attendance&message=${encodeURIComponent('Attendance mark karne mein error aaya.')}`;
+            }
+        }
+
+        function startScanning() {
+            countdownEl.textContent = secondsLeft;
+            frameInterval = setInterval(async () => {
+                if (matchFound) {
+                    clearInterval(frameInterval);
+                    return;
+                }
+                await sendFrame();
+                secondsLeft--;
+                countdownEl.textContent = Math.max(0, secondsLeft);
+
+                if (secondsLeft <= 0) {
+                    clearInterval(frameInterval);
+                    if (!matchFound) {
+                        if (stream) stream.getTracks().forEach(t => t.stop());
+                        window.location.href = `/result?success=0&title=Attendance&message=${encodeURIComponent('Face match nahi hua. Please try again with better lighting.')}`;
+                    }
+                }
+            }, 800);
+        }
+
+        startCamera();
+    </script>
+    </div>
 </body>
 </html>

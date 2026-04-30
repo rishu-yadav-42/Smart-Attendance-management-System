@@ -15,7 +15,7 @@ if os.path.isdir(VENDOR_DIR) and VENDOR_DIR not in sys.path:
 import cv2
 import numpy as np
 import pandas as pd
-from flask import Flask, Response, redirect, render_template, request, session, url_for
+from flask import Flask, Response, jsonify, redirect, render_template, request, session, url_for
 from PIL import Image
 
 try:
@@ -233,7 +233,9 @@ def training_file_student_id(filename):
 
 def preprocess_face(gray_face):
     face = cv2.resize(gray_face, FACE_SIZE)
-    face = cv2.equalizeHist(face)
+    # CLAHE for better local lighting normalization (background independent)
+    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+    face = clahe.apply(face)
     return face
 
 
@@ -745,6 +747,93 @@ def stable_match_ok(backend, vote_count, total_votes, avg_score, registered_coun
     return avg_score <= fallback_limit
 
 
+def _process_single_frame(img):
+    """Process a single frame for face recognition. Returns dict with status and match info."""
+    students = load_students()
+    if students.empty:
+        return {"status": "error", "message": "No student is registered."}
+
+    id_to_name = dict(zip(students["Id"].astype(str), students["Name"]))
+    recognizer, backend = load_face_recognizer()
+    if recognizer is None:
+        return {"status": "error", "message": "Model trained nahi hai. Pehle 'Train Model' chalayein."}
+
+    registered_count = recognizer_student_count(recognizer, len(id_to_name))
+    removed_recognizer = build_removed_face_recognizer()
+
+    # Resize for faster processing on slow CPUs (Render free tier)
+    h_img, w_img = img.shape[:2]
+    max_dim = 480
+    if max(h_img, w_img) > max_dim:
+        scale = max_dim / max(h_img, w_img)
+        img_small = cv2.resize(img, (int(w_img * scale), int(h_img * scale)))
+        scale_factor = 1.0 / scale
+    else:
+        img_small = img
+        scale_factor = 1.0
+
+    try:
+        gray = cv2.cvtColor(img_small, cv2.COLOR_BGR2GRAY)
+        gray = cv2.equalizeHist(gray)
+        faces = face_cascade.detectMultiScale(
+            gray,
+            scaleFactor=FACE_DETECT_SCALE_FACTOR,
+            minNeighbors=FACE_DETECT_MIN_NEIGHBORS,
+            minSize=(int(FACE_DETECT_MIN_SIZE[0] * scale_factor), int(FACE_DETECT_MIN_SIZE[1] * scale_factor)),
+        )
+    except Exception:
+        return {"status": "no_face", "message": "No face detected."}
+
+    if len(faces) == 0:
+        return {"status": "no_face", "message": "No face detected."}
+
+    # Use original image for face crop to maintain quality
+    x, y, w, h = max(faces, key=lambda box: box[2] * box[3])
+    x_orig = int(x * scale_factor)
+    y_orig = int(y * scale_factor)
+    w_orig = int(w * scale_factor)
+    h_orig = int(h * scale_factor)
+
+    face_color = crop_face_with_padding(img, x_orig, y_orig, w_orig, h_orig, 0.22)
+    if face_color is None:
+        return {"status": "no_face", "message": "No face detected."}
+
+    try:
+        face_gray = cv2.cvtColor(face_color, cv2.COLOR_BGR2GRAY)
+        # CLAHE for better local lighting normalization (background independent)
+        clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+        face_gray = clahe.apply(face_gray)
+        # Small blur to reduce noise
+        face_gray = cv2.GaussianBlur(face_gray, (3, 3), 0)
+    except Exception:
+        return {"status": "no_face", "message": "No face detected."}
+
+    if removed_recognizer is not None:
+        removed_recognizer_model, removed_backend = removed_recognizer
+        _, removed_score, _ = predict_with_backend(removed_recognizer_model, removed_backend, face_gray, face_color)
+        removed_match = (
+            removed_score >= REMOVED_FACE_ARCFACE_THRESHOLD
+            if removed_backend == "arcface"
+            else removed_score <= REMOVED_FACE_FALLBACK_CONFIDENCE_LIMIT
+        )
+        if removed_match:
+            return {"status": "removed", "message": "Removed face detected.", "confidence": float(removed_score)}
+
+    label, best_score, second_score = predict_with_backend(recognizer, backend, face_gray, face_color)
+    student_id = str(label) if label is not None else None
+
+    if student_id in id_to_name and attendance_match_ok(backend, best_score, second_score, registered_count):
+        return {
+            "status": "matched",
+            "student_id": student_id,
+            "name": id_to_name[student_id],
+            "confidence": float(best_score),
+            "backend": backend,
+        }
+
+    return {"status": "unmatched", "message": "Face match nahi hua."}
+
+
 def load_students():
     init_db()
     with get_db_connection() as conn:
@@ -1153,6 +1242,201 @@ def app_status():
     }
 
 
+@app.route("/result")
+def result_page():
+    success = request.args.get("success", "0") == "1"
+    title = request.args.get("title", "Result")
+    message = request.args.get("message", "")
+    return render_template("result.html", success=success, title=title, message=message, back_url=url_for("home"))
+
+
+@app.route("/process_frame", methods=["POST"])
+def process_frame():
+    if "image" not in request.files:
+        return jsonify({"status": "error", "message": "No image received"})
+
+    file = request.files["image"]
+    img_bytes = file.read()
+    if not img_bytes:
+        return jsonify({"status": "error", "message": "Empty image received"})
+
+    nparr = np.frombuffer(img_bytes, np.uint8)
+    img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+    if img is None:
+        return jsonify({"status": "error", "message": "Invalid image format"})
+
+    result = _process_single_frame(img)
+    return jsonify(result)
+
+
+@app.route("/mark_attendance_ajax", methods=["POST"])
+def mark_attendance_ajax():
+    data = request.get_json(force=True, silent=True) or {}
+    student_id = str(data.get("student_id", "")).strip()
+    name = str(data.get("name", "")).strip()
+    confidence = data.get("confidence", 0)
+
+    if not student_id or not name:
+        return jsonify({"success": False, "message": "Invalid student data."})
+
+    if not student_exists(student_id):
+        return jsonify({"success": False, "message": "Student registered nahi hai."})
+
+    now = datetime.now()
+    attendance_date = now.strftime("%Y-%m-%d")
+    attendance_time = now.strftime("%H:%M:%S")
+    display_date = now.strftime("%d-%m-%Y")
+
+    with get_db_connection() as conn:
+        existing = conn.execute(
+            "SELECT 1 FROM attendance WHERE student_id = ? AND attendance_date = ?",
+            (student_id, attendance_date),
+        ).fetchone()
+        already_marked = existing is not None
+        if not already_marked:
+            conn.execute(
+                """
+                INSERT INTO attendance
+                (student_id, name, attendance_date, attendance_time, confidence)
+                VALUES (?, ?, ?, ?, ?)
+                """,
+                (student_id, name, attendance_date, attendance_time, round(float(confidence), 2)),
+            )
+            try:
+                ensure_folders()
+                excel_filename = f"Attendance_{display_date}.xlsx"
+                excel_path = os.path.join(ATTENDANCE_DIR, excel_filename)
+                new_row = pd.DataFrame([{
+                    "Id": student_id,
+                    "Name": name,
+                    "Date": display_date,
+                    "Time": attendance_time,
+                    "Confidence": round(float(confidence), 2),
+                }])
+                if os.path.exists(excel_path):
+                    existing_df = pd.read_excel(excel_path, dtype={"Id": str})
+                    combined = pd.concat([existing_df, new_row], ignore_index=True)
+                    combined = combined.drop_duplicates(subset=["Id", "Date"], keep="last")
+                    combined.to_excel(excel_path, index=False)
+                else:
+                    new_row.to_excel(excel_path, index=False)
+            except Exception as exc:
+                print(f"[DEBUG] Excel save failed: {exc}")
+
+    return jsonify({"success": True, "message": f"Attendance marked for {name} (ID: {student_id}) at {attendance_time}."})
+
+
+@app.route("/capture_register_frame", methods=["POST"])
+def capture_register_frame():
+    if "admin" not in session:
+        return jsonify({"success": False, "message": "Admin login required."})
+
+    student_id = session.get("temp_id")
+    name = session.get("temp_name")
+    if not student_id or not name:
+        return jsonify({"success": False, "message": "Registration session expired. Please start again."})
+
+    if "image" not in request.files:
+        return jsonify({"success": False, "message": "No image received"})
+
+    file = request.files["image"]
+    img_bytes = file.read()
+    if not img_bytes:
+        return jsonify({"success": False, "message": "Empty image received"})
+
+    nparr = np.frombuffer(img_bytes, np.uint8)
+    img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+    if img is None:
+        return jsonify({"success": False, "message": "Invalid image format"})
+
+    # Resize for faster processing on slow CPUs
+    h_img, w_img = img.shape[:2]
+    max_dim = 480
+    if max(h_img, w_img) > max_dim:
+        scale = max_dim / max(h_img, w_img)
+        img_small = cv2.resize(img, (int(w_img * scale), int(h_img * scale)))
+        scale_factor = 1.0 / scale
+    else:
+        img_small = img
+        scale_factor = 1.0
+
+    gray = cv2.cvtColor(img_small, cv2.COLOR_BGR2GRAY)
+    gray = cv2.equalizeHist(gray)
+    faces = face_cascade.detectMultiScale(
+        gray,
+        scaleFactor=1.08,
+        minNeighbors=5,
+        minSize=(int(70 * scale_factor), int(70 * scale_factor)),
+    )
+
+    if len(faces) == 0:
+        return jsonify({"success": False, "message": "No face detected in frame"})
+
+    x, y, w, h = faces[0]
+    x_orig = int(x * scale_factor)
+    y_orig = int(y * scale_factor)
+    w_orig = int(w * scale_factor)
+    h_orig = int(h * scale_factor)
+    padded_face = crop_face_with_padding(img, x_orig, y_orig, w_orig, h_orig, 0.22)
+    if padded_face is None:
+        return jsonify({"success": False, "message": "Face crop failed"})
+
+    face = cv2.resize(padded_face, (224, 224))
+    ensure_folders()
+
+    # Find next sample number for this student
+    existing_samples = [
+        f for f in os.listdir(TRAINING_DIR)
+        if f.lower().endswith((".jpg", ".jpeg", ".png"))
+        and training_file_student_id(f) == str(student_id)
+    ]
+    sample_num = len(existing_samples) + 1
+
+    filename = f"{safe_file_name(name)}.{student_id}.{sample_num}.jpg"
+    filepath = os.path.join(TRAINING_DIR, filename)
+    cv2.imwrite(filepath, face)
+
+    return jsonify({"success": True, "sample": sample_num})
+
+
+@app.route("/process_register_ajax", methods=["POST"])
+def process_register_ajax():
+    if "admin" not in session:
+        return jsonify({"success": False, "message": "Admin login required."})
+
+    student_id = session.get("temp_id")
+    name = session.get("temp_name")
+
+    if not student_id or not name:
+        return jsonify({"success": False, "message": "Registration session expired."})
+
+    if student_exists(student_id):
+        session.pop("temp_id", None)
+        session.pop("temp_name", None)
+        return jsonify({"success": False, "message": f"ID {student_id} already registered."})
+
+    # Count saved samples
+    ensure_folders()
+    sample_count = sum(
+        1 for f in os.listdir(TRAINING_DIR)
+        if f.lower().endswith((".jpg", ".jpeg", ".png"))
+        and training_file_student_id(f) == str(student_id)
+    )
+
+    if sample_count < 12:
+        return jsonify({"success": False, "message": f"Only {sample_count} samples captured. Need at least 12. Please try again with better lighting."})
+
+    add_student(student_id, name)
+    success, train_message = train_model()
+    session.pop("temp_id", None)
+    session.pop("temp_name", None)
+
+    return jsonify({
+        "success": success,
+        "message": f"{name} (ID: {student_id}) registered successfully. {train_message}"
+    })
+
+
 @app.route("/process_attendance")
 def process_attendance():
     if model_needs_training():
@@ -1557,12 +1841,12 @@ def process_register():
     cam.release()
     cv2.destroyAllWindows()
 
-    if sample < 20:
+    if sample < 12:
         return render_template(
             "result.html",
             success=False,
             title="Register Student",
-            message="Not enough face samples were captured. Please check the lighting and camera angle, then try again.",
+            message="Not enough face samples were captured (need 12+). Please check the lighting and camera angle, then try again.",
             back_url=url_for("home"),
         )
 
@@ -1718,7 +2002,18 @@ def db_view():
     )
 
 
-if __name__ == "__main__":
+# Initialize on module import so gunicorn workers have folders and DB ready
+try:
     ensure_folders()
     init_db()
+except Exception as exc:
+    print(f"[WARNING] Startup initialization issue: {exc}")
+
+
+@app.route("/health")
+def health():
+    return {"status": "ok", "version": APP_VERSION}
+
+
+if __name__ == "__main__":
     app.run(host="127.0.0.1", port=int(os.environ.get("PORT", "5000")), debug=False)
