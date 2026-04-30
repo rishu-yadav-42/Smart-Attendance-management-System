@@ -771,9 +771,12 @@ body.admin-dashboard.sidebar-open {
   overflow-x: hidden;
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
+  pointer-events: auto;
+  visibility: visible;
   transition:
     transform var(--transition-slow),
     width var(--transition-slow),
+    visibility 0s linear,
     box-shadow var(--transition-slow);
 }
 
@@ -839,20 +842,25 @@ body.admin-dashboard.sidebar-open {
 @media (min-width: 768px) and (max-width: 1023px) {
   .menu-toggle { display: flex; }
   .admin-dashboard .sidebar {
-    width: min(340px, 42vw);
-    max-width: 80vw;
-    transform: translateX(-100%);
-    box-shadow: none;
+    width: min(340px, 42vw) !important;
+    max-width: 80vw !important;
+    transform: translateX(-100%) !important;
+    box-shadow: none !important;
+    visibility: hidden;
+    pointer-events: none;
   }
   .admin-dashboard.sidebar-open .sidebar,
   .admin-dashboard .sidebar.open {
-    transform: translateX(0);
-    box-shadow: var(--shadow-xl);
+    transform: translateX(0) !important;
+    box-shadow: var(--shadow-xl) !important;
+    visibility: visible;
+    pointer-events: auto;
   }
   .admin-dashboard .admin-main {
-    margin-left: 0;
-    width: 100%;
-    padding: 88px 24px 24px;
+    margin-left: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: 88px 24px 24px !important;
   }
   .admin-dashboard #sidebarToggle {
     display: none;
@@ -886,22 +894,27 @@ body.admin-dashboard.sidebar-open {
   .menu-toggle { display: flex; }
 
   .admin-dashboard .sidebar {
-    width: min(80vw, 320px);
-    max-width: 80vw;
-    transform: translateX(-100%);
-    box-shadow: none;
+    width: min(80vw, 320px) !important;
+    max-width: 80vw !important;
+    transform: translateX(-100%) !important;
+    box-shadow: none !important;
+    visibility: hidden;
+    pointer-events: none;
   }
 
   .admin-dashboard.sidebar-open .sidebar,
   .admin-dashboard .sidebar.open {
-    transform: translateX(0);
-    box-shadow: var(--shadow-xl);
+    transform: translateX(0) !important;
+    box-shadow: var(--shadow-xl) !important;
+    visibility: visible;
+    pointer-events: auto;
   }
 
   .admin-dashboard .admin-main {
-    margin-left: 0;
-    width: 100%;
-    padding: 88px 16px 20px;
+    margin-left: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: 88px 16px 20px !important;
   }
 
   .admin-dashboard #sidebarToggle {
