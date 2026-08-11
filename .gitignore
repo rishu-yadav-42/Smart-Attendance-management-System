@@ -1,0 +1,19 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.env
+.venv/
+env/
+venv/
+.vendor312/
+
+# Ignore large model files and dataset images
+FaceModelStore/
+TrainingImage/
+TrainingImageLabel/
+Attendance/
+*.db
+*.npz
+*.zip
+*.onnx
