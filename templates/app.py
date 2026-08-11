@@ -1192,7 +1192,7 @@ def train():
 def login():
     error = None
     if request.method == "POST":
-        if request.form["username"] == "admin" and request.form["password"] == "1234":
+        if request.form["username"] == "Rishu" and request.form["password"] == "Rishu@123":
             session["admin"] = True
             return redirect(url_for("home"))
         error = "Invalid username or password."
