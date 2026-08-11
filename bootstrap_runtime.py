@@ -77,7 +77,7 @@ def main():
         print("Runtime ready.")
         if initial_optional_missing:
             print("Optional packages missing:", ", ".join(OPTIONAL_MODULES[name] for name in initial_optional_missing))
-            print("App fallback face recognizer mode mein chalegi.")
+            print("App will run in fallback face recognizer mode.")
         return 0
 
     print("Missing packages detected:", ", ".join(REQUIRED_MODULES[name] for name in initial_missing))
@@ -96,7 +96,7 @@ def main():
         print("Runtime ready.")
         if final_optional_missing:
             print("Optional packages still missing:", ", ".join(OPTIONAL_MODULES[name] for name in final_optional_missing))
-            print("App fallback face recognizer mode mein chalegi.")
+            print("App will run in fallback face recognizer mode.")
         return 0
 
     print()
